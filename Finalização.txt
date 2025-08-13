@@ -53,4 +53,6 @@ credit-score-project/
 7 Deploy contínuo (opcional)
     Integrar com GitHub Actions ou outro CI/CD para build e deploy automático da Lambda, API Gateway e front.
 
+
 8 Versão “production-ready” usando Streamlit + Lambda + Docker que dá pra subir até no AWS App Runner ou mesmo no EC2 
+deploy online (Streamlit Cloud, por exemplo).
