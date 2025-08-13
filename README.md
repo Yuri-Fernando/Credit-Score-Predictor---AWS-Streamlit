@@ -43,3 +43,72 @@ Projeto que integra:
 ### Teste da Lambda
 ```bash
 python teste_api.py
+
+Exemplo de resposta:
+
+{
+  "request_id": "54ae0f89-0cf2-49b4-bdda-aad97e21c3c9",
+  "score": 0.5699,
+  "model_version": "v1",
+  "label": null
+}
+
+Teste do Streamlit
+
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+
+    Preencha os campos de idade, renda e empréstimo.
+
+    Clique em Prever para obter score de crédito.
+
+Payload Esperado
+
+{
+  "data": {
+    "LIMIT_BAL": 50000,
+    "SEX": 2,
+    "EDUCATION": 2,
+    "MARRIAGE": 1,
+    "AGE": 30,
+    "PAY_0": 0,
+    "PAY_2": 0,
+    "PAY_3": 0,
+    "PAY_4": 0,
+    "PAY_5": 0,
+    "PAY_6": 0,
+    "BILL_AMT1": 3000,
+    "BILL_AMT2": 0,
+    "BILL_AMT3": 0,
+    "BILL_AMT4": 0,
+    "BILL_AMT5": 0,
+    "BILL_AMT6": 0,
+    "PAY_AMT1": 1000,
+    "PAY_AMT2": 0,
+    "PAY_AMT3": 0,
+    "PAY_AMT4": 0,
+    "PAY_AMT5": 0,
+    "PAY_AMT6": 0
+  }
+}
+
+Considerações Finais
+
+    Já está funcionando: Lambda + API + Streamlit.
+
+    Próximos passos:
+
+        Testes de edge cases
+
+        Revisão de permissões e segurança
+
+        Logs, tracing e alarmes
+
+        Deploy contínuo (opcional)
+
+Dependências
+
+boto3
+joblib
+requests
+streamlit
