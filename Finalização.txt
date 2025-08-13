@@ -1,0 +1,56 @@
+Estrutura
+
+credit-score-project/
+│
+├─ lambda/                  # Código do Lambda
+│   ├─ lambda_function.py
+│   └─ requirements.txt
+│
+├─ streamlit/               # Front-end
+│   └─ app.py
+│
+├─ sagemaker/               # Scripts de treino / upload de features (opcional)
+│
+├─ tests/                   # Testes unitários / integração
+│   └─ teste_api.py
+│
+├─ scripts/                 # Scripts de deploy
+│   └─ package_lambda.ps1
+│
+├─ README.md
+└─ .gitignore
+
+
+1 Testar endpoint
+    Testar endpoint com valores reais e extremos para garantir estabilidade.
+    Validar formatos de dados (tipos, valores nulos, ranges).
+    Testar Lambda com múltiplos requests simultâneos (cold start e warm start).
+
+2 Revisar logs e tracing
+    Abrir o CloudWatch e verificar se todas as chamadas aparecem corretamente.
+    Testar X-Ray (se habilitado) para identificar tempos de cold start, execução e possíveis gargalos.
+
+3 Segurança e permissões
+    Confirmar IAM roles: Lambda só acessa S3 (features), DynamoDB (inserção), SageMaker (invoke endpoint).
+    Garantir que API Gateway só possa invocar a Lambda.
+    Evitar permissões “*” abertas.
+
+4 Validar DynamoDB & S3
+    Testar escrita e leitura de dados reais no DynamoDB.
+    Testar leitura das features do S3 para diferentes cenários (arquivo ausente, cache inválido).
+
+5 Documentação completa
+    README explicando:
+        Como subir Lambda, configurar API Gateway, variáveis de ambiente.
+        Estrutura do payload (data) e campos obrigatórios.
+        Como rodar Streamlit localmente.
+    Incluir exemplos de payloads e respostas esperadas.
+
+6 Alarmes e monitoramento
+    Criar alarmes no Lambda para erros (>X% ou >=Y erros).
+    Monitorar métricas de performance: duração da execução, número de invocações, erros.
+
+7 Deploy contínuo (opcional)
+    Integrar com GitHub Actions ou outro CI/CD para build e deploy automático da Lambda, API Gateway e front.
+
+8 Versão “production-ready” usando Streamlit + Lambda + Docker que dá pra subir até no AWS App Runner ou mesmo no EC2 
