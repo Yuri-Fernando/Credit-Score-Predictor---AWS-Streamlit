@@ -549,6 +549,58 @@ O projeto demonstra a integração entre **Machine Learning, arquitetura serverl
 
 ---
 
+# Versão 2.0 — Adversarial Robustness & Model Security
+
+Um modelo financeiro não é só *treinar → accuracy → deploy*. É
+*treinar → validar → atacar → medir robustez → mitigar → monitorar*. A V2
+adiciona essa camada (`src/adversarial/`), tratando o modelo de risco de
+crédito como alvo de ataque.
+
+O modelo de produção é o XGBoost no SageMaker; aqui usamos um **proxy local**
+(`HistGradientBoostingClassifier` sobre o mesmo schema UCI de 23 features)
+para estudar robustez sem depender do endpoint.
+
+## O que foi adicionado
+
+- `src/adversarial/dataset.py` — carrega `UCI_Credit_Card.csv` se presente;
+  senão sintetiza o mesmo schema (23 features) com regra de rótulo plausível.
+- `src/adversarial/feature_constraints.py` — **quais features um solicitante
+  consegue manipular** (`PAY_AMT*`, `BILL_AMT*` recentes, com limites) vs.
+  imutáveis (`SEX`, `AGE`, `EDUCATION`, `MARRIAGE`, `LIMIT_BAL`, histórico
+  `PAY_*`). Sem isso, "ataque tabular" viraria trocar idade ou sexo.
+- `src/adversarial/evasion.py` — **evasão de perturbação mínima** (busca por
+  coordenada black-box, só consultas ao score): menor mudança nas features
+  manipuláveis que reverte `high_risk → low_risk`.
+- `src/adversarial/robustness_curves.py` — fração de decisões `high_risk`
+  revertíveis por orçamento de perturbação B.
+- `src/adversarial/adversarial_training.py` — retreino com exemplos evadidos
+  (ainda rotulados como alto risco) para endurecer a fronteira.
+- `src/adversarial/model_extraction.py` — substituto treinado só com as
+  decisões do modelo-alvo (`fidelity`).
+- `adversarial_robustness.ipynb` — walkthrough completo.
+- 6 testes (`tests/test_adversarial.py`, dataset sintético, determinísticos).
+
+## Cenário
+
+```text
+cliente real         renda ↑ levemente, pagamento ↑ levemente (dentro do plausível)
+score 0.62  ──────▶  score 0.48
+high_risk            low_risk        ← fronteira revertível com pouca perturbação
+```
+
+O módulo mede o **orçamento mínimo de perturbação** necessário para mudar a
+decisão — e o `adversarial_training` aumenta esse orçamento.
+
+## Integração com o portfólio
+
+Caso de uso de **adversarial tabular** da trilha de AI Security centralizada
+no **ThemisAI** (`core/adversarial_ml/`). O `ModelSecurityReport` gerado
+alimenta o *robustness gate* do **Argus** (`ml-platform/adversarial-evaluation/`).
+Ver também VisionGuard (adversarial vision), RL-PID-AGV (adversarial RL) e
+Churn (robustness testing).
+
+---
+
 # Autor
 
 **Yuri Fernando Dubbern**

@@ -1,0 +1,18 @@
+# Dependências / vendored / build
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+node_modules/
+package.json
+package-lock.json
+.serverless/
+lambda_package/
+Nuvem/lambda_package/
+*.zip
+
+# Segredos e notas locais — NUNCA versionar
+credenciais*.txt
+*credenciais*
+Parte 1*.txt
+Perfeito*.txt
+Finalização.txt
