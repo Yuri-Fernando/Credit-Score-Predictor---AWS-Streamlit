@@ -16,3 +16,11 @@ credenciais*.txt
 Parte 1*.txt
 Perfeito*.txt
 Finalização.txt
+
+# Terraform (estado/local — nunca versionar)
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+dist/
+.pytest_cache/

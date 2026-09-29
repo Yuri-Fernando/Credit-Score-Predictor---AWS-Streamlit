@@ -7,10 +7,10 @@ on:
     branches: [main]
 
 jobs:
-  adversarial-robustness:
-    name: Adversarial Robustness (V2) — pytest
+  tests:
+    name: Testes — robustez adversarial (V2) + MLOps/contrato (V3)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,6 +19,25 @@ jobs:
       - name: Install
         run: |
           python -m pip install -U pip
-          pip install pytest numpy pandas scikit-learn
-      - name: Run adversarial robustness tests
-        run: pytest tests/test_adversarial.py -q
+          pip install -r requirements-mlops.txt
+      - name: Compilar (sintaxe)
+        run: python -m compileall -q src Nuvem scripts
+      - name: Testes unitários e de contrato (sem AWS)
+        env:
+          INFERENCE_MODE: local
+          PERSIST: "false"
+        run: pytest -q tests
+
+  terraform:
+    name: IaC — fmt + validate (sem credenciais, sem plan/apply)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

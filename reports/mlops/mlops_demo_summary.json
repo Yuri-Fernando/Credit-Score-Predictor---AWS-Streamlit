@@ -1,0 +1,420 @@
+{
+  "registry_package": {
+    "model_package_version": 1,
+    "model_package_group": "riskcredit-pd-12m",
+    "source_model_version": "v3-20260929",
+    "champion": "xgboost",
+    "artifact_uri": "model_artifacts/riskcredit-v3",
+    "artifact_sha256": "50830ac72e1e903eee0d5b728d886fe2ff6a99de624154b82a64c33316d059f3",
+    "training_data_sha256": "c0a916b8f162e71ed3b8d5f0ee1b93c271275b5d7cb6637a3695db764970f442",
+    "metrics": {
+      "auc": 0.780000908640172,
+      "gini": 0.560001817280344,
+      "ks": 0.42569354934987436,
+      "brier": 0.13522106640109072,
+      "ece": 0.01388922706411945,
+      "psi_train_test": 0.00027133316266621184
+    },
+    "validation": {
+      "passed": true,
+      "checks": {
+        "gini": true,
+        "ece": true,
+        "psi_train_test": true
+      },
+      "gates": {
+        "gini_min": 0.45,
+        "ece_max": 0.02,
+        "psi_train_test_max": 0.1
+      }
+    },
+    "approval_status": "Approved",
+    "history": [
+      {
+        "at": "2026-09-29T01:05:54.383218+00:00",
+        "event": "registered",
+        "status": "PendingManualApproval"
+      },
+      {
+        "at": "2026-09-29T01:05:54.417121+00:00",
+        "event": "decision",
+        "status": "Approved",
+        "approver": "demo-model-risk-reviewer",
+        "reason": "Gates de validação aprovados; model card e limitações revisados (demo)."
+      }
+    ]
+  },
+  "deployment_manifest": {
+    "stage": "staging",
+    "model_package_group": "riskcredit-pd-12m",
+    "model_package_version": 1,
+    "artifact_sha256": "50830ac72e1e903eee0d5b728d886fe2ff6a99de624154b82a64c33316d059f3",
+    "container": "sagemaker-xgboost:1.7-1",
+    "data_capture": {
+      "enabled": true,
+      "sampling_percentage": 100
+    },
+    "applied": false,
+    "note": "deploy real pendente (custo AWS) — ver ROADMAP"
+  },
+  "handler": {
+    "golden_status": 200,
+    "golden_max_abs_diff": 4.985389709388777e-07,
+    "negative_cases": {
+      "campo_ausente": {
+        "status": 422,
+        "error": "campo_obrigatorio_ausente"
+      },
+      "atributo_excluido_SEX": {
+        "status": 422,
+        "error": "atributo_excluido_do_modelo"
+      },
+      "json_invalido": {
+        "status": 400,
+        "error": "json_invalido"
+      },
+      "payload_gigante": {
+        "status": 413,
+        "error": "payload_muito_grande"
+      }
+    },
+    "operational": {
+      "invocations": 5,
+      "error_rate": 0.0,
+      "client_error_rate": 0.8,
+      "schema_violation_rate": 0.4,
+      "p50_latency_ms": 0.07,
+      "p95_latency_ms": 293.19599999999997
+    }
+  },
+  "drift_stable": [
+    {
+      "feature": "score",
+      "psi": 0.6742,
+      "alert": "red"
+    },
+    {
+      "feature": "bill_trend",
+      "psi": 0.0066,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_2",
+      "psi": 0.0051,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT3",
+      "psi": 0.0042,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_3",
+      "psi": 0.0038,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_0",
+      "psi": 0.0036,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT2",
+      "psi": 0.0033,
+      "alert": "green"
+    },
+    {
+      "feature": "utilization_avg",
+      "psi": 0.0032,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_6",
+      "psi": 0.003,
+      "alert": "green"
+    },
+    {
+      "feature": "utilization",
+      "psi": 0.0029,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT5",
+      "psi": 0.0029,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_4",
+      "psi": 0.0028,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT2",
+      "psi": 0.0026,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT3",
+      "psi": 0.0024,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT4",
+      "psi": 0.0022,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_5",
+      "psi": 0.002,
+      "alert": "green"
+    },
+    {
+      "feature": "pay_ratio",
+      "psi": 0.002,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT6",
+      "psi": 0.0019,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT4",
+      "psi": 0.0018,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT1",
+      "psi": 0.0017,
+      "alert": "green"
+    },
+    {
+      "feature": "pay_ratio_avg",
+      "psi": 0.0017,
+      "alert": "green"
+    },
+    {
+      "feature": "n_months_delayed",
+      "psi": 0.0016,
+      "alert": "green"
+    },
+    {
+      "feature": "pay_trend",
+      "psi": 0.0014,
+      "alert": "green"
+    },
+    {
+      "feature": "mean_delay",
+      "psi": 0.0013,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT1",
+      "psi": 0.0013,
+      "alert": "green"
+    },
+    {
+      "feature": "PAY_AMT5",
+      "psi": 0.0013,
+      "alert": "green"
+    },
+    {
+      "feature": "max_delay",
+      "psi": 0.0011,
+      "alert": "green"
+    },
+    {
+      "feature": "LIMIT_BAL",
+      "psi": 0.0009,
+      "alert": "green"
+    },
+    {
+      "feature": "BILL_AMT6",
+      "psi": 0.0008,
+      "alert": "green"
+    }
+  ],
+  "drift_synthetic_traffic": [
+    {
+      "feature": "utilization_avg",
+      "psi": 4.4696,
+      "alert": "red"
+    },
+    {
+      "feature": "max_delay",
+      "psi": 4.3729,
+      "alert": "red"
+    },
+    {
+      "feature": "pay_ratio_avg",
+      "psi": 4.0483,
+      "alert": "red"
+    },
+    {
+      "feature": "n_months_delayed",
+      "psi": 3.7335,
+      "alert": "red"
+    },
+    {
+      "feature": "mean_delay",
+      "psi": 3.1961,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT3",
+      "psi": 2.3763,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_4",
+      "psi": 2.3236,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_5",
+      "psi": 2.2752,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_3",
+      "psi": 2.2092,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_6",
+      "psi": 2.2002,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_2",
+      "psi": 1.6288,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT6",
+      "psi": 1.5752,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT6",
+      "psi": 1.4193,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT4",
+      "psi": 1.3839,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT5",
+      "psi": 1.3705,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT5",
+      "psi": 1.364,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT4",
+      "psi": 1.3365,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT2",
+      "psi": 1.2258,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT3",
+      "psi": 1.1375,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_AMT1",
+      "psi": 1.1153,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT2",
+      "psi": 1.0859,
+      "alert": "red"
+    },
+    {
+      "feature": "utilization",
+      "psi": 1.0847,
+      "alert": "red"
+    },
+    {
+      "feature": "BILL_AMT1",
+      "psi": 1.0518,
+      "alert": "red"
+    },
+    {
+      "feature": "pay_ratio",
+      "psi": 1.005,
+      "alert": "red"
+    },
+    {
+      "feature": "bill_trend",
+      "psi": 0.9957,
+      "alert": "red"
+    },
+    {
+      "feature": "PAY_0",
+      "psi": 0.8962,
+      "alert": "red"
+    },
+    {
+      "feature": "score",
+      "psi": 0.535,
+      "alert": "red"
+    },
+    {
+      "feature": "pay_trend",
+      "psi": 0.4796,
+      "alert": "red"
+    },
+    {
+      "feature": "LIMIT_BAL",
+      "psi": 0.4301,
+      "alert": "red"
+    }
+  ],
+  "shadow": {
+    "n": 400,
+    "score_psi_challenger_vs_champion": 0.8467408854345592,
+    "spearman_rank_corr": 0.43323420771379817,
+    "decision_agreement": 0.86,
+    "approval_rate_champion": 0.1225,
+    "approval_rate_challenger": 0.0525,
+    "p95_latency_ms_champion": 26.511489999393227,
+    "p95_latency_ms_challenger": 3.8996199979010266,
+    "threshold": 0.12
+  },
+  "canary": {
+    "checks": {
+      "error_rate": true,
+      "p95_latency": true,
+      "score_psi": false,
+      "decision_agreement": false,
+      "rank_corr": false
+    },
+    "failed": [
+      "score_psi",
+      "decision_agreement",
+      "rank_corr"
+    ],
+    "action": "hold",
+    "steps": [
+      10,
+      50,
+      100
+    ]
+  },
+  "notes": [
+    "nenhuma chamada AWS foi feita",
+    "tráfego sintético usa o gerador da V2 (schema UCI, distribuição diferente do treino) — drift é o resultado esperado",
+    "challenger = modelo adversarialmente treinado da V2 sobre dados sintéticos"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "groups": {
+    "riskcredit-pd-12m": {
+      "versions": [
+        {
+          "model_package_version": 1,
+          "model_package_group": "riskcredit-pd-12m",
+          "source_model_version": "v3-20260929",
+          "champion": "xgboost",
+          "artifact_uri": "model_artifacts/riskcredit-v3",
+          "artifact_sha256": "50830ac72e1e903eee0d5b728d886fe2ff6a99de624154b82a64c33316d059f3",
+          "training_data_sha256": "c0a916b8f162e71ed3b8d5f0ee1b93c271275b5d7cb6637a3695db764970f442",
+          "metrics": {
+            "auc": 0.780000908640172,
+            "gini": 0.560001817280344,
+            "ks": 0.42569354934987436,
+            "brier": 0.13522106640109072,
+            "ece": 0.01388922706411945,
+            "psi_train_test": 0.00027133316266621184
+          },
+          "validation": {
+            "passed": true,
+            "checks": {
+              "gini": true,
+              "ece": true,
+              "psi_train_test": true
+            },
+            "gates": {
+              "gini_min": 0.45,
+              "ece_max": 0.02,
+              "psi_train_test_max": 0.1
+            }
+          },
+          "approval_status": "Approved",
+          "history": [
+            {
+              "at": "2026-09-29T01:05:54.383218+00:00",
+              "event": "registered",
+              "status": "PendingManualApproval"
+            },
+            {
+              "at": "2026-09-29T01:05:54.417121+00:00",
+              "event": "decision",
+              "status": "Approved",
+              "approver": "demo-model-risk-reviewer",
+              "reason": "Gates de validação aprovados; model card e limitações revisados (demo)."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

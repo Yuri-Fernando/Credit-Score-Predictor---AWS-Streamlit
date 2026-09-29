@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0.0",
+  "raw_input_features": [
+    {
+      "name": "LIMIT_BAL",
+      "dtype": "number",
+      "min": 1,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_0",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "PAY_2",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "PAY_3",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "PAY_4",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "PAY_5",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "PAY_6",
+      "dtype": "number",
+      "min": -2,
+      "max": 9,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT1",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT2",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT3",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT4",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT5",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "BILL_AMT6",
+      "dtype": "number",
+      "min": -1000000,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT1",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT2",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT3",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT4",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT5",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    },
+    {
+      "name": "PAY_AMT6",
+      "dtype": "number",
+      "min": 0,
+      "max": 5000000,
+      "required": true
+    }
+  ],
+  "derived_features": [
+    "mean_delay",
+    "max_delay",
+    "n_months_delayed",
+    "utilization",
+    "utilization_avg",
+    "pay_ratio",
+    "pay_ratio_avg",
+    "bill_trend",
+    "pay_trend"
+  ],
+  "model_features_ordered": [
+    "LIMIT_BAL",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6",
+    "mean_delay",
+    "max_delay",
+    "n_months_delayed",
+    "utilization",
+    "utilization_avg",
+    "pay_ratio",
+    "pay_ratio_avg",
+    "bill_trend",
+    "pay_trend"
+  ],
+  "excluded_attributes": [
+    "SEX",
+    "MARRIAGE",
+    "AGE",
+    "EDUCATION"
+  ],
+  "feature_engineering": "src/data/load.py::engineer (RiskCredit V3)"
+}

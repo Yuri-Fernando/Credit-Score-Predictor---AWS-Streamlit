@@ -6,6 +6,8 @@
 
 🟢 **Concluído — Projeto de portfólio / Machine Learning em Cloud**
 
+🟢 **V3.0 — MLOps financeiro local-first** (contrato com RiskCredit, registry com aprovação manual, handler endurecido, drift, shadow/canary, IaC validado e **não aplicado** — ver [Versão 3.0](#versão-30--mlops-financeiro-local-first))
+
 Aplicação de **predição de risco de crédito** estruturada em uma arquitetura serverless na AWS, integrando **AWS Lambda, API Gateway, SageMaker, DynamoDB, S3 e Streamlit**.
 
 O projeto demonstra o fluxo completo entre uma interface de usuário, uma API serverless, um modelo de Machine Learning hospedado na AWS e camadas de persistência para dados e logs.
@@ -598,6 +600,72 @@ no **ThemisAI** (`core/adversarial_ml/`). O `ModelSecurityReport` gerado
 alimenta o *robustness gate* do **Argus** (`ml-platform/adversarial-evaluation/`).
 Ver também VisionGuard (adversarial vision), RL-PID-AGV (adversarial RL) e
 Churn (robustness testing).
+
+---
+
+# Versão 3.0 — MLOps financeiro (local-first)
+
+A V3 transforma o projeto de "deploy AWS" em uma **esteira de MLOps
+financeiro**: contrato de dados, registry com aprovação manual, handler
+endurecido, monitoramento de drift, shadow/canary e IaC — tudo **executável
+e testado localmente**. A infraestrutura AWS existente **não foi alterada**
+(decisão de custo): nada foi implantado, nenhum `terraform plan/apply` foi
+executado e nenhum recurso novo foi criado na conta.
+
+## De onde vem o modelo
+
+O champion agora é publicado pelo [RiskCredit v3](https://github.com/Yuri-Fernando/RiskCredit)
+(XGBoost, Gini 0,560 no teste, atributos demográficos fora do modelo) e
+chega como **contrato versionado** em `model_artifacts/riskcredit-v3/`:
+`xgboost-model.json`, `feature_schema.json`, `model_card.json`,
+`metrics.json`, `reference_profile.json` e `golden_samples.json` (commit de
+origem em `SOURCE_COMMIT`).
+
+```text
+RiskCredit (treino, validação) ──contrato──▶ Registry local ──aprovação manual──▶ manifesto de deploy
+                                                   │                                   (applied=false)
+                                                   ▼
+                          Handler v3 (validação → features → score → log) ──▶ monitoramento / shadow / canary
+```
+
+## O que foi adicionado
+
+| Item do plano | Implementação | Estado |
+|---|---|---|
+| Integração com RiskCredit (5.8) | `model_artifacts/riskcredit-v3/` + `src/mlops/features.py` (engenharia idêntica) | ✅ paridade testada: máx \|Δ PD\| = 5e-7 nas 25 golden samples |
+| Data quality / contrato (5.6) | `src/mlops/contract.py` — campo ausente, extra, fora de faixa, não finito, PAY_x não inteiro, atributo excluído (SEX/AGE…) → **rejeita** | ✅ (a Lambda v1 preenchia ausentes com 0) |
+| Segurança do handler (5.7) | `src/mlops/handler.py` — limite de 16 KB e 50 registros, 400/413/422/500 tipados, log JSON sem valores de entrada, persiste features + PD (não payload bruto) | ✅ local · Cognito/WAF no IaC/roadmap |
+| Model Registry (5.2) | `src/mlops/registry.py` — semântica do SageMaker (`PendingManualApproval → Approved/Rejected`), gates (Gini ≥ 0,45, ECE ≤ 0,02, PSI < 0,10), aprovador + motivo, idempotência por hash, manifesto só para `Approved` | ✅ local · SageMaker real ⏸️ custo |
+| Monitoring (5.5) | `src/mlops/monitoring.py` — PSI por feature e do score contra o perfil de treino, métricas RED do log, performance quando o alvo amadurecer | ✅ offline · CloudWatch no IaC |
+| Canary / shadow (5.4) | `src/mlops/shadow.py` + `configs/canary_policy.yaml` — PSI de score, correlação de ranking, concordância de decisão, latência; decisão promote / hold / rollback | ✅ offline · roteamento real ⏸️ custo |
+| IaC (5.1) | `infra/terraform/` — KMS, S3 (versionado, criptografado, sem acesso público), DynamoDB (PITR, TTL, KMS), Lambda (IAM de menor privilégio, X-Ray, concorrência reservada), API Gateway HTTP com **JWT/Cognito** e throttling, Model Package Group, endpoint serverless com variantes champion/challenger **desligado por padrão** (`create_endpoint=false`), alarmes (erros, throttles, p95, 5xx) | ✅ `terraform validate` · **não aplicado** |
+| CI/CD (5.3) | `.github/workflows/ci.yml` — compileall, testes (adversarial + MLOps/contrato) e `terraform fmt/validate` | ✅ · deploy de staging/prod ⏸️ |
+
+## Resultados (execução real: `python scripts/mlops_demo.py`)
+
+| Verificação | Resultado |
+|---|---|
+| Registry | pacote v1 registrado, gates aprovados, `Approved` por revisor demo → manifesto `staging` (`applied=false`) |
+| Handler — golden samples | HTTP 200; PD idêntica à do RiskCredit (máx \|Δ\| = 5e-7) |
+| Handler — casos negativos | campo ausente → 422 · `SEX` enviado → 422 · JSON inválido → 400 · 300 registros → 413 |
+| Drift — lote estável (amostrado do perfil) | 28/28 features verdes; **score vermelho** (PSI 0,67): a amostragem independente preserva marginais e destrói a estrutura conjunta — drift que o PSI por feature não vê e o PSI do score vê |
+| Drift — tráfego sintético da V2 | 29/29 vermelhos (distribuição diferente do treino, como esperado) |
+| Shadow — challenger = modelo adversarial da V2 | concordância 86%, PSI de score 0,85, Spearman 0,43 → canary: **hold** (não promover) |
+
+```bash
+pip install -r requirements-mlops.txt
+python -m pytest -q tests                 # 20 testes (6 V2 + 14 V3), sem AWS
+python scripts/mlops_demo.py              # registry, handler, drift, shadow/canary
+cd infra/terraform && terraform init -backend=false && terraform validate
+```
+
+## Pendente por custo (ROADMAP)
+
+Deploy do modelo v3 no endpoint, SageMaker Model Registry real, pipeline de
+deploy staging → aprovação → prod, canary com tráfego real, CloudWatch/X-Ray
+em produção, WAF (exige REST API ou CloudFront na frente do HTTP API) e
+Secrets Manager. Detalhes em [ROADMAP.md](ROADMAP.md) · histórico em
+[CHANGELOG.md](CHANGELOG.md).
 
 ---
 

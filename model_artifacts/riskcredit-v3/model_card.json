@@ -1,0 +1,55 @@
+{
+  "model_name": "riskcredit-pd-12m",
+  "champion": "xgboost",
+  "version": "v3-20260929",
+  "created_at": "2026-09-29T00:59:42.510752+00:00",
+  "intended_use": "PoC de portfólio — score de PD para simulação de estratégia; NÃO é sistema de concessão real",
+  "training_data": {
+    "source": "UCI Default of Credit Card Clients (Taiwan, 2005)",
+    "sha256": "c0a916b8f162e71ed3b8d5f0ee1b93c271275b5d7cb6637a3695db764970f442"
+  },
+  "target": "default no mês seguinte (out/2005)",
+  "artifact_sha256": "0af2121c241ae8587f3c5960da54daf5914680e9a1a78c6f7bb836b84d99a597",
+  "approval_status": "PendingManualApproval",
+  "limitations": [
+    "sem OOT real (dataset sem originação/safra)",
+    "premissas econômicas ilustrativas",
+    "dados de 2005, Taiwan — sem validade para carteira brasileira atual"
+  ],
+  "feature_list": [
+    "LIMIT_BAL",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6",
+    "mean_delay",
+    "max_delay",
+    "n_months_delayed",
+    "utilization",
+    "utilization_avg",
+    "pay_ratio",
+    "pay_ratio_avg",
+    "bill_trend",
+    "pay_trend"
+  ],
+  "threshold_max_expected_profit": 0.12,
+  "scorecard_scale": {
+    "base_score": 600,
+    "base_odds": 50,
+    "pdo": 20
+  }
+}

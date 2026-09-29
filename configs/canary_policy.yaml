@@ -1,0 +1,10 @@
+# Política de canary para troca de modelo no endpoint (avaliada offline; roteamento real no ROADMAP)
+traffic_steps: [10, 50, 100]      # % do tráfego no challenger
+min_requests_per_step: 1000
+gates:
+  max_error_rate: 0.01
+  max_p95_latency_ms: 300
+  max_score_psi: 0.10            # distribuição de score do challenger vs champion
+  min_decision_agreement: 0.90   # concordância aprova/recusa no limiar vigente
+  min_rank_corr: 0.85
+rollback_on: [error_rate, p95_latency]   # falha nesses gates → rollback imediato; demais → hold + revisão humana

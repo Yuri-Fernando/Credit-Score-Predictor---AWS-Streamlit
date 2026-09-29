@@ -1,0 +1,59 @@
+{
+  "champion": "xgboost",
+  "decision": {
+    "champion": "xgboost",
+    "gini_gain_vs_scorecard": 0.035436321772989166,
+    "reason": "ganho de Gini 0.035 ≥ 0.02 com calibração e estabilidade dentro do limite"
+  },
+  "test": {
+    "auc": 0.780000908640172,
+    "gini": 0.560001817280344,
+    "ks": 0.42569354934987436,
+    "pr_auc": 0.5553017410586714,
+    "brier": 0.13522106640109072,
+    "ece": 0.01388922706411945,
+    "mean_pred": 0.219827339053154,
+    "observed_rate": 0.2212222222222222,
+    "psi_train_test": 0.00027133316266621184,
+    "n_features": 28,
+    "latency_ms_per_1k": 1.43,
+    "passes_calibration": true,
+    "passes_stability": true
+  },
+  "threshold_policy": {
+    "min_expected_cost": {
+      "threshold": 0.1,
+      "approval_rate": 0.3258888888888889,
+      "bad_rate_approved": 0.06784861916126833
+    },
+    "max_expected_profit": {
+      "threshold": 0.12,
+      "approval_rate": 0.4048888888888889,
+      "bad_rate_approved": 0.07766190998902305,
+      "realized_profit_test": 22655060.979999997
+    },
+    "naive_0_5": {
+      "approval_rate": 0.8798888888888889,
+      "bad_rate_approved": 0.16113145599191817,
+      "expected_profit": -11378444.846098911,
+      "realized_profit_test": -18804039.020000007
+    }
+  },
+  "robustness": {
+    "full_window": {
+      "auc": 0.780000908640172,
+      "gini": 0.560001817280344,
+      "ks": 0.42569354934987436,
+      "pr_auc": 0.5553017410586714
+    },
+    "lagged_1_month": {
+      "auc": 0.7483388115688812,
+      "gini": 0.4966776231377623,
+      "ks": 0.3698598322211687,
+      "pr_auc": 0.4845361616771058
+    },
+    "gini_drop": 0.06332419414258172,
+    "interpretation": "queda de Gini ao perder o mês mais recente (sensibilidade à defasagem de dados)",
+    "is_out_of_time": false
+  }
+}
