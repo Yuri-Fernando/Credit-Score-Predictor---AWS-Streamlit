@@ -6,7 +6,7 @@
 
 🟢 **Concluído — Projeto de portfólio / Machine Learning em Cloud**
 
-🟢 **V3.0 — MLOps financeiro local-first** (contrato com RiskCredit, registry com aprovação manual, handler endurecido, drift, shadow/canary, IaC validado e **não aplicado** — ver [Versão 3.0](#versão-30--mlops-financeiro-local-first))
+🟢 **V3.0 — MLOps financeiro local-first** (contrato com RiskCredit, registry com aprovação manual, handler endurecido, drift, shadow/canary, IaC validado e **não aplicado** — ver [o que há de novo na v3](#-versão-30--mlops-financeiro-local-first--setembro2026))
 
 Aplicação de **predição de risco de crédito** estruturada em uma arquitetura serverless na AWS, integrando **AWS Lambda, API Gateway, SageMaker, DynamoDB, S3 e Streamlit**.
 
@@ -603,7 +603,7 @@ Churn (robustness testing).
 
 ---
 
-# Versão 3.0 — MLOps financeiro (local-first)
+# 🆕 Versão 3.0 — MLOps financeiro (local-first) — setembro/2026
 
 A V3 transforma o projeto de "deploy AWS" em uma **esteira de MLOps
 financeiro**: contrato de dados, registry com aprovação manual, handler
@@ -628,7 +628,9 @@ RiskCredit (treino, validação) ──contrato──▶ Registry local ──ap
                           Handler v3 (validação → features → score → log) ──▶ monitoramento / shadow / canary
 ```
 
-## O que foi adicionado
+## O que há de novo na v3 (em relação à v2)
+
+V1 (Lambda/SageMaker em produção) e V2 (robustez adversarial) continuam **intactas**. Tudo abaixo é novo:
 
 | Item do plano | Implementação | Estado |
 |---|---|---|
