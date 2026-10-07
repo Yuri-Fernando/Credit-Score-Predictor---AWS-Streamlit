@@ -8,6 +8,8 @@
 
 🟢 **V3.0 — MLOps financeiro local-first** (contrato com RiskCredit, registry com aprovação manual, handler endurecido, drift, shadow/canary, IaC validado e **não aplicado** — ver [o que há de novo na v3](#-versão-30--mlops-financeiro-local-first--setembro2026))
 
+🟢 **V3.1 — orquestração (Step Functions), dashboard CloudWatch e guard-rails de custo** — IaC validado e **não aplicado** (ver [CHANGELOG 3.1.0](CHANGELOG.md))
+
 Aplicação de **predição de risco de crédito** estruturada em uma arquitetura serverless na AWS, integrando **AWS Lambda, API Gateway, SageMaker, DynamoDB, S3 e Streamlit**.
 
 O projeto demonstra o fluxo completo entre uma interface de usuário, uma API serverless, um modelo de Machine Learning hospedado na AWS e camadas de persistência para dados e logs.
@@ -668,6 +670,44 @@ deploy staging → aprovação → prod, canary com tráfego real, CloudWatch/X-
 em produção, WAF (exige REST API ou CloudFront na frente do HTTP API) e
 Secrets Manager. Detalhes em [ROADMAP.md](ROADMAP.md) · histórico em
 [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+# 🆕 Versão 3.1 — Orquestração, observabilidade e guard-rails de custo — outubro/2026
+
+Item da auditoria de portfólio (B.8): *"orchestration/monitoring/deploy"*. Continua a
+restrição da v3: **nenhum recurso novo foi aplicado na AWS**.
+
+- **Step Functions** — `infra/terraform/templates/pipeline.asl.json.tftpl` define o state
+  machine real (`ValidateBatch → ScoreShadow [Parallel: champion/challenger] → CombineShadow →
+  MonitorDrift → Choice → PublishManifest`), com `Retry`/`Catch` em cada Task. As 5 Lambdas de
+  step (`infra/terraform/stepfunctions.tf`) chamam funções puras em `src/mlops/pipeline_steps.py`
+  — nenhuma acessa a AWS. `src/mlops/asl_runner.py` é um interpretador local mínimo de ASL
+  (`validate_structure()` + `run()`) que executa essa mesma definição sem Step Functions/AWS.
+- **CloudWatch** — `infra/terraform/cloudwatch_pipeline.tf`: alarmes de execuções
+  falhas/expiradas do pipeline, alarme de erro por step Lambda, e um `aws_cloudwatch_dashboard`
+  operacional (Lambda predict, API Gateway, pipeline quando habilitado).
+- **Deploy IaC controlado por custo** — `infra/terraform/cost_guardrails.tf`: `aws_budgets_budget`
+  mensal + `var.mandatory_tags` (CostCenter/Owner obrigatórios). `scripts/terraform_guard.sh` é o
+  único caminho suportado para operar o Terraform: `fmt`/`validate`/`plan` liberados,
+  `apply`/`destroy` bloqueados sem `TF_GUARD_ALLOW_APPLY=yes-eu-entendo-o-custo` explícito. Todo o
+  pipeline fica atrás de `var.enable_pipeline_orchestration` (padrão `false`).
+
+```bash
+scripts/terraform_guard.sh validate                              # terraform init -backend=false + validate
+cd infra/terraform && terraform validate -var enable_pipeline_orchestration=true   # os dois caminhos
+python -m pytest -q tests/test_stepfunctions.py                  # 13 testes — sintaxe ASL + simulação local
+```
+
+**Achado honesto, não um bug de teste**: o monitoramento de drift do score (PSI) fica
+"vermelho" para todo lote sintético disponível no repositório (golden samples são casos de
+borda; amostragem independente por feature destrói a estrutura conjunta — ver V3.0). O teste
+ponta-a-ponta reflete esse resultado real (o pipeline suspende a publicação em
+`HoldForDriftReview`); os 4 ramos de decisão (rollback / hold-drift / hold-canary / promote) são
+testados isoladamente a partir do estado `CheckCanaryAndDrift`. Mitigação real — tráfego de
+produção de verdade em vez de dados sintéticos — fica no ROADMAP.
+
+Detalhes completos em [CHANGELOG.md](CHANGELOG.md) · pendências em [ROADMAP.md](ROADMAP.md).
 
 ---
 
