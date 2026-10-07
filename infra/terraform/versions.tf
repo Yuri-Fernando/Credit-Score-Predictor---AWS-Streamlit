@@ -18,11 +18,6 @@ terraform {
 provider "aws" {
   region = var.region
   default_tags {
-    tags = {
-      Project     = var.project
-      Environment = var.environment
-      ManagedBy   = "terraform"
-      CostCenter  = "portfolio"
-    }
+    tags = merge(var.mandatory_tags, { Project = var.project, Environment = var.environment })
   }
 }

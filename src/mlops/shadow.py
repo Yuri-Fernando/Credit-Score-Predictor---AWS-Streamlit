@@ -44,6 +44,29 @@ def shadow_compare(champion: Callable, challenger: Callable, records: list[dict]
             "p95_latency_ms_challenger": float(np.percentile(ls, 95)), "threshold": threshold}
 
 
+def shadow_compare_arrays(champion_pds: list[float], challenger_pds: list[float], threshold: float) -> dict:
+    """Mesma métrica de ``shadow_compare``, mas a partir de PDs já calculadas (sem callables).
+
+    Usado pela orquestração (plano §5.1 — Step Functions): cada branch do
+    Parallel ``ScoreShadow`` só pode trocar JSON com o próximo estado, então
+    o combine-step recebe listas de PD em vez de funções de predição.
+    """
+    pc, ps = np.asarray(champion_pds, dtype=float), np.asarray(challenger_pds, dtype=float)
+    if len(pc) != len(ps) or len(pc) == 0:
+        raise ValueError("champion_pds e challenger_pds precisam ter o mesmo tamanho (> 0)")
+    edges = np.unique(np.quantile(pc, np.linspace(0, 1, 11))[1:-1])
+    ref = {"type": "continuous", "edges": edges.tolist(),
+           "proportions": (np.bincount(np.searchsorted(edges, pc, side="right"), minlength=len(edges) + 1)
+                           / len(pc)).tolist()}
+    agree = float(((pc < threshold) == (ps < threshold)).mean())
+    rank_corr = float(spearmanr(pc, ps).statistic) if len(pc) > 1 and np.std(pc) > 0 and np.std(ps) > 0 else 1.0
+    return {"n": len(pc), "score_psi_challenger_vs_champion": psi_against_reference(ref, ps),
+            "spearman_rank_corr": rank_corr, "decision_agreement": agree,
+            "approval_rate_champion": float((pc < threshold).mean()),
+            "approval_rate_challenger": float((ps < threshold).mean()),
+            "p95_latency_ms_champion": 0.0, "p95_latency_ms_challenger": 0.0, "threshold": threshold}
+
+
 def canary_decision(shadow: dict, canary_ops: dict, policy: dict) -> dict:
     g = policy["gates"]
     checks = {

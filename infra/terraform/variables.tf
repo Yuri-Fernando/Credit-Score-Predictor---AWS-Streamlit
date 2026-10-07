@@ -61,3 +61,24 @@ variable "log_retention_days" {
   type    = number
   default = 30
 }
+
+variable "enable_pipeline_orchestration" {
+  description = "Cria a state machine (Step Functions) e as 5 Lambdas de step do pipeline MLOps (plano §5.1). Desligado por padrão (guard-rail de custo) — terraform validate funciona com qualquer valor."
+  type        = bool
+  default     = false
+}
+
+variable "mandatory_tags" {
+  description = "Tags obrigatórias em todo recurso, aplicadas via provider default_tags (guard-rail de custo/governança)."
+  type        = map(string)
+  default = {
+    Project    = "credit-score"
+    ManagedBy  = "terraform"
+    CostCenter = "portfolio"
+    Owner      = "yuri.dubbern"
+  }
+  validation {
+    condition     = contains(keys(var.mandatory_tags), "CostCenter") && contains(keys(var.mandatory_tags), "Owner")
+    error_message = "mandatory_tags precisa conter as chaves CostCenter e Owner (guard-rail de custo/governança)."
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "Comment": "Credit Score Predictor v3 — pipeline MLOps (plano §5.1). Validate -> Score (champion/challenger em paralelo) -> Shadow/Canary -> Drift -> Publish (manifesto, applied=false). NAO APLICADO nesta sessao: so terraform validate.",
+  "StartAt": "ValidateBatch",
+  "States": {
+    "ValidateBatch": {
+      "Type": "Task",
+      "Resource": "${validate_lambda_arn}",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "States.Timeout"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RejectBatch" }
+      ],
+      "Next": "ScoreShadow"
+    },
+    "ScoreShadow": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "ScoreChampion",
+          "States": {
+            "ScoreChampion": {
+              "Type": "Task",
+              "Resource": "${score_lambda_arn}",
+              "Parameters": { "records.$": "$.records", "artifact_dir": "champion" },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "ScoreChallenger",
+          "States": {
+            "ScoreChallenger": {
+              "Type": "Task",
+              "Resource": "${score_lambda_arn}",
+              "Parameters": { "records.$": "$.records", "artifact_dir": "challenger" },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RejectBatch" }
+      ],
+      "ResultPath": "$.shadow_branches",
+      "Next": "CombineShadow"
+    },
+    "CombineShadow": {
+      "Type": "Task",
+      "Resource": "${combine_lambda_arn}",
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RejectBatch" }
+      ],
+      "Next": "MonitorDrift"
+    },
+    "MonitorDrift": {
+      "Type": "Task",
+      "Resource": "${monitor_lambda_arn}",
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RejectBatch" }
+      ],
+      "Next": "CheckCanaryAndDrift"
+    },
+    "CheckCanaryAndDrift": {
+      "Type": "Choice",
+      "Choices": [
+        { "Variable": "$.decision.action", "StringEquals": "rollback", "Next": "RollbackChallenger" },
+        { "Variable": "$.drift_red", "BooleanEquals": true, "Next": "HoldForDriftReview" },
+        { "Variable": "$.decision.action", "StringEquals": "hold", "Next": "HoldPendingReview" }
+      ],
+      "Default": "PublishManifest"
+    },
+    "RollbackChallenger": {
+      "Type": "Fail",
+      "Error": "CanaryRollback",
+      "Cause": "Gate de rollback (error_rate/p95_latency) reprovado — ver configs/canary_policy.yaml (rollback_on)."
+    },
+    "HoldForDriftReview": {
+      "Type": "Succeed",
+      "Comment": "PSI do score em vermelho contra o perfil de referência — publicação suspensa para revisão humana."
+    },
+    "HoldPendingReview": {
+      "Type": "Succeed",
+      "Comment": "Gate de canary em hold (concordância/PSI/rank-corr abaixo do limiar, sem violar rollback_on) — revisão humana antes do próximo passo de tráfego."
+    },
+    "PublishManifest": {
+      "Type": "Task",
+      "Resource": "${publish_lambda_arn}",
+      "Retry": [
+        { "ErrorEquals": ["Lambda.ServiceException"], "IntervalSeconds": 2, "MaxAttempts": 2, "BackoffRate": 2.0 }
+      ],
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RejectBatch" }
+      ],
+      "Next": "Published"
+    },
+    "Published": {
+      "Type": "Succeed",
+      "Comment": "Manifesto de deploy gerado (applied=false) — apply real fica pendente por custo (ROADMAP)."
+    },
+    "RejectBatch": {
+      "Type": "Fail",
+      "Error": "PipelineRejected",
+      "Cause": "Contrato de dados violado ou etapa do pipeline falhou — ver $.error para detalhes."
+    }
+  }
+}
