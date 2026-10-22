@@ -1,0 +1,19 @@
+# Política de governança de ciclo de vida do model registry local (v3.2).
+# Lida por src.mlops.registry.load_lifecycle_policy(); caminhos relativos resolvem a partir da raiz do repo.
+# Tudo aqui é opcional: sem este arquivo o registry usa os mesmos padrões embutidos.
+
+# Onde ler o risk_tier de uma avaliação de risco produzida pelo RiskCredit v3.1 (modelo de origem).
+# Se o arquivo não existir, assess_risk() falha com RiskAssessmentUnavailable — a menos que o tier
+# seja informado explicitamente. A avaliação precisa ser da MESMA versão do modelo registrado.
+risk_assessment_path: "../Risco de Credito/governance/risk_assessment.json"
+risk_tier_field: "risk_tier"
+
+# Intervalo entre revalidações, em dias, por risk_tier (review_due_date = approval_date + intervalo).
+# HIGH = 90 espelha o review_interval_days do approval_record do RiskCredit.
+review_interval_days:
+  LOW: 365
+  LIMITED: 180
+  HIGH: 90
+
+# Tiers que não podem ser aprovados nem promovidos (só Retirement).
+prohibited_tiers: [PROHIBITED]
