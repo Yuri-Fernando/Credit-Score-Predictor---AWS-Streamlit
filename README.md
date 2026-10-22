@@ -1,17 +1,17 @@
-# 💳 Credit Score Predictor — AWS + Streamlit — de inferência serverless a MLOps financeiro orquestrado
+# 💳 Credit Score Predictor — AWS + Streamlit — de inferência serverless a MLOps financeiro orquestrado e governado
 
 ### Python · AWS Lambda · SageMaker · API Gateway · DynamoDB · S3 · Step Functions · Terraform · XGBoost · Streamlit
 
 [![ci](https://github.com/Yuri-Fernando/Credit-Score-Predictor---AWS-Streamlit/actions/workflows/ci.yml/badge.svg)](https://github.com/Yuri-Fernando/Credit-Score-Predictor---AWS-Streamlit/actions/workflows/ci.yml)
-![testes](https://img.shields.io/badge/testes-33%20passed-0a8a0a)
+![testes](https://img.shields.io/badge/testes-73%20passed-0a8a0a)
 ![IaC](https://img.shields.io/badge/IaC-validate%2Fplan%20only-2a78d6)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v3.1.0-4a5563) ![license](https://img.shields.io/badge/license-sem%20arquivo-4a5563)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v3.2.0-4a5563) ![license](https://img.shields.io/badge/license-sem%20arquivo-4a5563)
 
 ## Status
 
-🟢 **Concluído no escopo v1 (fluxo serverless real) — v3.1.0 adiciona MLOps, orquestração e guard-rails de custo, tudo validado localmente.**
+🟢 **Concluído no escopo v1 (fluxo serverless real) — v3.2.0 adiciona MLOps, orquestração, guard-rails de custo e governança de ciclo de vida do modelo, tudo validado localmente e nada aplicado na AWS.**
 
-A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) é o fluxo real em produção na conta AWS do autor, implantado em 2025. As v2/v3/v3.1 (robustez adversarial, MLOps financeiro, orquestração via Step Functions, CloudWatch e guard-rails de custo) são **inteiramente locais**: 33 testes passaram nesta revisão, mas **nenhum `terraform apply`/`destroy` foi executado** — toda a infraestrutura nova existe apenas como `terraform validate`/`plan`, nunca aplicada na conta.
+A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) é o fluxo real em produção na conta AWS do autor, implantado em 2025. As v2/v3/v3.1/v3.2 (robustez adversarial, MLOps financeiro, orquestração via Step Functions, CloudWatch, guard-rails de custo e governança de ciclo de vida) são **inteiramente locais**: 73 testes passaram nesta revisão, mas **nenhum `terraform apply`/`destroy` foi executado** — toda a infraestrutura nova existe apenas como `terraform validate`/`plan`, nunca aplicada na conta.
 
 | Camada | Estado | Evidência |
 |---|---|---|
@@ -19,6 +19,7 @@ A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) é o fluxo r
 | v2 — Robustez adversarial (proxy local) | 🟢 Local, testado | 6 testes (`tests/test_adversarial.py`) |
 | v3 — MLOps financeiro (registry, contrato, drift, shadow/canary) | 🟢 Local, testado · IaC validado | 14 testes (`tests/test_mlops.py`) |
 | v3.1 — Orquestração (Step Functions), CloudWatch, guard-rails de custo | 🟢 Local, testado · IaC validado | 13 testes (`tests/test_stepfunctions.py`) |
+| v3.2 — Governança de ciclo de vida no registry (responsáveis, `risk_tier`, revisão com vencimento, Retirement) | 🟢 Local, testado · nada aplicado na AWS | 40 testes (`tests/test_lifecycle.py`) |
 
 ---
 
@@ -127,6 +128,40 @@ RiskCredit (treino, validação) ──contrato──▶ Registry local ──ap
 6. PublishManifest grava o manifesto (applied=false, nunca toca a conta AWS)
 ```
 
+### Governança de ciclo de vida do modelo (v3.2, local)
+
+O registry (`src/mlops/registry.py`) ganhou uma camada **opcional** de ciclo de vida sobre a aprovação manual que já existia. É governança de apoio e trilha de auditoria — não um sistema de conformidade certificado, e nada disso é aplicado na AWS.
+
+```text
+Validation → Registry → RiskAssessment → ManualApproval → Shadow → Canary → Production → DriftMonitoring
+                              ▲                              ▲        │                          │
+                              │                              └────────┘ rollback do canary       ▼
+                              └──────────────────────── Revalidation ◄──────────────────────────┘
+qualquer estágio ativo → Retirement  (terminal; nada é apagado)
+```
+
+- **Campos novos** (bloco `lifecycle` de cada versão): `model_owner`, `business_owner`, `risk_tier` (`LOW`/`LIMITED`/`HIGH`/`PROHIBITED`), `approval_date`, `review_due_date`, `retired_at`. Padrão `None`; versões e manifestos anteriores à v3.2 continuam válidos e não mudam de comportamento até a primeira operação de ciclo de vida.
+- **Transições** só pelo grafo acima (`advance()`); pular estágio levanta `InvalidTransition`. Cada passo exige `actor` e motivo (≥ 10 caracteres) e entra no `history` (append-only).
+- **Pré-condições:** `ManualApproval` exige `risk_tier` (e `PROHIBITED` só admite `Retirement`); `Shadow` exige decisão `Approved`, os dois responsáveis e revisão agendada.
+- **Revisão com vencimento:** a aprovação agenda `review_due_date = approval_date + intervalo do tier` (`HIGH` 90, `LIMITED` 180, `LOW` 365 dias, em `configs/lifecycle_policy.yaml`). Vencida, **bloqueia promoção** (`Shadow→Canary→Production`) e `deployment_manifest()` com `ReviewOverdue`; o rollback não é bloqueado e `overdue_reviews()` lista o que precisa revalidar.
+- **Revalidation** reabre a aprovação (status volta a `PendingManualApproval`, tier é reavaliado) e preserva a decisão anterior no histórico.
+- **Retirement** é terminal e não apaga a versão: métricas, hashes e histórico permanecem; a versão sai de `latest_approved()` e não gera manifesto de deploy.
+- **`risk_tier` vindo do RiskCredit:** sem tier explícito, `assess_risk()` lê o `risk_assessment.json` do RiskCredit v3.1 pelo caminho configurado em `configs/lifecycle_policy.yaml`, confere que a avaliação é da mesma `model_version` do registry e grava caminho + SHA-256 + versão como origem. Arquivo ausente, ilegível ou de outra versão → `RiskAssessmentUnavailable` (sem tier "padrão" inventado).
+
+```python
+from datetime import date
+from src.mlops.registry import LocalModelRegistry, load_lifecycle_policy
+
+reg = LocalModelRegistry("registry/model_registry.json", policy=load_lifecycle_policy("configs/lifecycle_policy.yaml"))
+pkg = reg.register("riskcredit-pd", "model_artifacts/riskcredit-v3")       # gates de validação → Registry
+reg.set_owners("riskcredit-pd", 1, "modelagem", "risco-de-credito", actor="ana")
+reg.advance("riskcredit-pd", 1, "RiskAssessment", "ana", "iniciar avaliação de risco do champion")
+reg.assess_risk("riskcredit-pd", 1, "ana")                                 # tier lido do RiskCredit v3.1
+reg.advance("riskcredit-pd", 1, "ManualApproval", "ana", "tier definido, pronto para decisão")
+reg.set_status("riskcredit-pd", 1, "Approved", "revisor", "gates e risco revisados")  # agenda a revisão
+reg.advance("riskcredit-pd", 1, "Shadow", "ana", "iniciar comparação champion x challenger")
+```
+
 ---
 
 ## 🧠 Verificação / Validação
@@ -139,7 +174,7 @@ RiskCredit (treino, validação) ──contrato──▶ Registry local ──ap
 | Paridade RiskCredit ↔ handler v3 | Mesma engenharia de features que o modelo de origem | máx \|Δ PD\| = 5e-7 nas 25 golden samples |
 | `terraform validate` (com e sem `enable_pipeline_orchestration`) | IaC é sintaticamente e estruturalmente válido | Validado nesta revisão, **sem apply/plan contra a conta** |
 
-Execução nesta revisão: `python -m pytest -q tests` → **33 passed** (6 + 14 + 13), confirmado nesta sessão.
+Execução nesta revisão: `python -m pytest -q tests` → **72 passed, 1 skipped** em 524 s (cópia local fora do Drive); o teste pulado (`test_real_riskcredit_assessment_if_present`) lê o `risk_assessment.json` real do RiskCredit v3.1 e só roda com a pasta do RiskCredit ao lado deste repo — rodado à parte no local original: **1 passed**. Total **73** (6 + 14 + 13 + 40).
 
 ---
 
@@ -170,7 +205,7 @@ Execução nesta revisão: `python -m pytest -q tests` → **33 passed** (6 + 14
 
 | Métrica | Valor | Origem |
 |---|---|---|
-| Testes totais | 33 passed | `python -m pytest -q tests`, executado nesta sessão |
+| Testes totais | 73 passed (72 na suíte completa + 1 dependente do RiskCredit local) | `python -m pytest -q tests`, executado nesta sessão |
 | Paridade RiskCredit vs handler v3 | máx \|Δ PD\| = 5e-7 | 25 golden samples, `scripts/mlops_demo.py` |
 | Registry | Pacote aprovado por gates (Gini ≥ 0,45, ECE ≤ 0,02, PSI < 0,10) | `scripts/mlops_demo.py` |
 | Drift — lote estável amostrado do perfil | 28/28 features verdes; score vermelho (PSI 0,67) | `scripts/mlops_demo.py`, ver achado acima |
@@ -224,6 +259,7 @@ Detalhes completos: [ROADMAP.md](ROADMAP.md).
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| 3.2.0 | 2026-10-21 | Governança de ciclo de vida no registry local: `model_owner`/`business_owner`/`risk_tier`/`approval_date`/`review_due_date`, estágios Validation→…→Retirement com transições validadas, revisão vencida bloqueia promoção/deploy, Retirement preserva histórico, `risk_tier` lido do RiskCredit v3.1; 40 testes novos |
 | 3.1.0 | 2026-10-07 | Orquestração via Step Functions (ASL real + interpretador local), CloudWatch dashboard/alarmes, guard-rails de custo (AWS Budgets, tags obrigatórias, `terraform_guard.sh`), 13 testes novos |
 | 3.0.0 | 2026-09-28 | MLOps financeiro local-first: contrato de dados, registry com aprovação manual, handler endurecido, monitoramento de drift, shadow/canary, IaC validado, 14 testes |
 | 2.0.0 | 2026-09-10 | Robustez adversarial: evasão, curvas de robustez, adversarial training, model extraction, 6 testes |
@@ -235,7 +271,11 @@ Changelog completo: [CHANGELOG.md](CHANGELOG.md).
 
 ## 🔮 Próximos Passos
 
-**Concluído nesta versão (3.1.0):**
+**Concluído nesta versão (3.2.0):**
+- ✅ Governança de ciclo de vida no registry local (responsáveis, `risk_tier`, revisão com vencimento, Retirement com histórico preservado);
+- ✅ `risk_tier` lido do `risk_assessment.json` do RiskCredit v3.1, com conferência da versão do modelo e SHA-256 da origem.
+
+**Concluído na versão 3.1.0:**
 - ✅ Step Functions real (ASL) + interpretador local equivalente;
 - ✅ CloudWatch dashboard/alarmes definidos em IaC;
 - ✅ Guard-rails de custo (budget, tags obrigatórias, bloqueio de apply/destroy).
@@ -261,7 +301,7 @@ Pré-requisitos: Python 3.9+ (runtime da Lambda), `pip`, Terraform (para `valida
 pip install -r requirements.txt
 pip install -r requirements-mlops.txt
 
-# Suíte completa (33 testes) — executado nesta revisão
+# Suíte completa (73 testes) — executado nesta revisão
 python -m pytest -q tests
 
 # Demo do pipeline de MLOps (registry, handler, drift, shadow/canary) — local, sem AWS
@@ -310,10 +350,11 @@ Credit-Score-Predictor---AWS-Streamlit/
 │   ├── mlops_demo.py
 │   └── terraform_guard.sh          # bloqueia apply/destroy sem flag explícita
 ├── configs/canary_policy.yaml
+├── configs/lifecycle_policy.yaml   # v3.2 — intervalos de revisão por tier, origem do risk_assessment.json
 ├── model_artifacts/riskcredit-v3/  # contrato do champion publicado pelo RiskCredit
 ├── registry/model_registry.json
 ├── reports/mlops/
-├── tests/                          # 33 testes (6 + 14 + 13)
+├── tests/                          # 73 testes (6 + 14 + 13 + 40)
 ├── adversarial_robustness.ipynb
 ├── requirements.txt / requirements-mlops.txt
 ├── CHANGELOG.md / ROADMAP.md
@@ -340,19 +381,20 @@ Não versionado (e por quê): `credenciais aws cli.txt` (segredo local, ignorado
 - O endpoint SageMaker da v1 não deve ser considerado protegido para produção sem mecanismos adicionais de autenticação (Cognito/JWT está no IaC, mas não aplicado);
 - O modelo e os resultados dependem dos dados utilizados em seu treinamento; o projeto não constitui uma solução completa de crédito para decisões financeiras reais;
 - Não há arquivo de licença (`LICENSE`) na raiz deste repositório nesta revisão — ver seção Licença;
-- Esta revisão rodou a suíte completa de testes (33 passed) e `terraform validate`; não foi executado `terraform plan`/`apply` nem testes de carga contra o endpoint real.
+- A governança de ciclo de vida (v3.2) vive só no registry **local**; o SageMaker Model Registry real não foi tocado. O `approver`/`actor` é texto livre — não há autenticação nem assinatura —, a data de vencimento depende do relógio de quem executa e o `risk_tier` é tão confiável quanto a avaliação de origem;
+- Esta revisão (v3.2) rodou a suíte completa de testes (72 passed + 1 teste dependente da pasta do RiskCredit, rodado à parte: passou). O `terraform validate` é o da v3.1.0 e **não foi repetido** agora (a v3.2 não altera o IaC); não foi executado `terraform plan`/`apply` nem testes de carga contra o endpoint real.
 
 ---
 
 ## Status
 
-🟢 **v1 concluída e real em produção na AWS.** 🟢 **v2/v3/v3.1 concluídas localmente** — 33 testes passando (confirmado nesta revisão), IaC validado para orquestração via Step Functions, CloudWatch e guard-rails de custo. Nenhum `apply`/`destroy` foi executado contra a conta; o que depende de orçamento está documentado no ROADMAP.
+🟢 **v1 concluída e real em produção na AWS.** 🟢 **v2/v3/v3.1/v3.2 concluídas localmente** — 73 testes passando (confirmado nesta revisão), IaC validado para orquestração via Step Functions, CloudWatch e guard-rails de custo. Nenhum `apply`/`destroy` foi executado contra a conta; o que depende de orçamento está documentado no ROADMAP.
 
 ---
 
 ## Contexto / Observações
 
-Projeto de portfólio pessoal, não afiliado a nenhuma empresa ou cliente. A v1 é um deploy real do autor em sua própria conta AWS pessoal, sem usuários externos, tráfego de produção de terceiros ou SLA comercial. Os números de v2/v3/v3.1 (testes, paridade, PSI, concordância shadow) são medições reais de execução local, não estimativas de ferramenta nem projeções — e não substituem uma avaliação de risco de crédito real.
+Projeto de portfólio pessoal, não afiliado a nenhuma empresa ou cliente. A v1 é um deploy real do autor em sua própria conta AWS pessoal, sem usuários externos, tráfego de produção de terceiros ou SLA comercial. Os números de v2/v3/v3.1/v3.2 (testes, paridade, PSI, concordância shadow) são medições reais de execução local, não estimativas de ferramenta nem projeções — e não substituem uma avaliação de risco de crédito real.
 
 ---
 
@@ -360,7 +402,8 @@ Projeto de portfólio pessoal, não afiliado a nenhuma empresa ou cliente. A v1 
 
 | Projeto | Relação |
 |---|---|
-| [RiskCredit](https://github.com/Yuri-Fernando/RiskCredit) | Publica o modelo champion (XGBoost) consumido como contrato versionado em `model_artifacts/riskcredit-v3/` |
+| [RiskCredit](https://github.com/Yuri-Fernando/RiskCredit) | Publica o modelo champion (XGBoost) consumido como contrato versionado em `model_artifacts/riskcredit-v3/`; a v3.1 gera o `risk_assessment.json` de onde o registry lê o `risk_tier` |
+| [AegisLLM](https://github.com/Yuri-Fernando/AegisLLM) | Mesma abordagem de governança (inventário, classificação de risco, aprovação vinculada a hash), aplicada a sistemas de IA generativa |
 
 ---
 

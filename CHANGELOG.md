@@ -2,6 +2,39 @@
 
 Documento mestre de histórico. Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/) + SemVer.
 
+## [3.2.0] — 2026-10-21 — Governança de ciclo de vida no registry local
+
+Origem: auditoria de portfólio (governança de modelos: dono, tier de risco, revisão periódica, retirada).
+Restrição mantida: **nada foi aplicado na AWS**; o SageMaker Model Registry real continua pendente por custo.
+
+### Added
+- `src/mlops/registry.py` — camada de ciclo de vida **opcional** em cada versão (bloco `lifecycle`): campos
+  `model_owner`, `business_owner`, `risk_tier` (`LOW`/`LIMITED`/`HIGH`/`PROHIBITED`), `approval_date`,
+  `review_due_date`, `retired_at`; estágios `Validation → Registry → RiskAssessment → ManualApproval → Shadow →
+  Canary → Production → DriftMonitoring → Revalidation → Retirement` com transições validadas (`advance()`,
+  `InvalidTransition`), rollback Canary→Shadow e reabertura da aprovação em `Revalidation`.
+- `set_owners()`, `assess_risk()`, `retire()`, `review_status()` e `overdue_reviews()`; exceções tipadas
+  `LifecycleError`, `InvalidTransition`, `RiskAssessmentUnavailable`, `ReviewOverdue`.
+- Revisão com vencimento: a aprovação agenda `review_due_date` (intervalo por tier); vencida, bloqueia promoção
+  (`Shadow→Canary→Production`) e `deployment_manifest()`; o rollback não é bloqueado.
+- Retirement terminal que **preserva** métricas, hashes e histórico (a versão sai de `latest_approved()` e não gera
+  manifesto de deploy). Rejeição de versão governada também encerra a versão.
+- `risk_tier` lido de um `risk_assessment.json` (RiskCredit v3.1) por caminho configurável em
+  `configs/lifecycle_policy.yaml`, com conferência de `model_version` e registro de caminho + SHA-256 de origem.
+- `configs/lifecycle_policy.yaml` e `load_lifecycle_policy()`.
+- `tests/test_lifecycle.py` — 40 testes (transições, pré-condições, vencimento, revalidação, retirement, tier por
+  arquivo, compatibilidade com manifesto anterior à v3.2).
+
+### Changed
+- `LocalModelRegistry.set_status`, `latest_approved` e `deployment_manifest` ganharam parâmetros/validações
+  **opcionais** (`today`, `review_interval_days`); a assinatura anterior continua válida.
+- Compatibilidade: versão sem bloco `lifecycle` (v3.0/v3.1) recebe o default inferido (não governado) e mantém o
+  comportamento anterior até a primeira operação de ciclo de vida. Os 14 testes de `tests/test_mlops.py` seguem passando.
+
+### Limitações
+- `actor`/`approver` são texto livre (sem autenticação ou assinatura); datas dependem do relógio local.
+- Não há integração com o SageMaker Model Registry real nem com um catálogo de dados.
+
 ## [3.1.0] — 2026-10-07 — Orquestração (Step Functions) + CloudWatch dashboard + guard-rails de custo
 
 Origem: auditoria de portfólio, item B.8 ("Credit Score AWS — orchestration/monitoring/deploy").
