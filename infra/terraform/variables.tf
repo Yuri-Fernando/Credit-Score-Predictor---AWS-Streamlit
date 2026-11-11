@@ -57,6 +57,18 @@ variable "api_throttle_burst" {
   default = 40
 }
 
+variable "kms_deletion_window_days" {
+  description = "Janela de exclusão da chave KMS (7–30 dias). Chave pendente de exclusão não é cobrada."
+  type        = number
+  default     = 30
+}
+
+variable "lambda_reserved_concurrency" {
+  description = "Concorrência reservada da Lambda de predição. -1 = sem reserva (contas novas/Free Plan têm limite de 10 e a AWS exige 10 não reservadas)."
+  type        = number
+  default     = 20
+}
+
 variable "log_retention_days" {
   type    = number
   default = 30

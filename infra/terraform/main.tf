@@ -8,7 +8,38 @@ data "aws_caller_identity" "current" {}
 resource "aws_kms_key" "main" {
   description             = "${local.name} — dados de inferência, artefatos e logs"
   enable_key_rotation     = true
-  deletion_window_in_days = 30
+  deletion_window_in_days = var.kms_deletion_window_days
+  policy                  = data.aws_iam_policy_document.kms.json
+}
+
+data "aws_region" "current" {}
+
+# Sem esta policy o CloudWatch Logs não consegue usar a chave e a criação dos log groups criptografados falha
+# (AccessDeniedException) — erro só visível em conta real; o emulador não valida key policies.
+data "aws_iam_policy_document" "kms" {
+  statement {
+    sid       = "ContaAdministraAChave"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+  statement {
+    sid       = "CloudWatchLogsUsaAChave"
+    actions   = ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+    resources = ["*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:*"]
+    }
+  }
 }
 
 resource "aws_kms_alias" "main" {
@@ -239,7 +270,7 @@ resource "aws_lambda_function" "predict" {
   source_code_hash               = fileexists(var.lambda_zip_path) ? filebase64sha256(var.lambda_zip_path) : null
   timeout                        = 10
   memory_size                    = 1024
-  reserved_concurrent_executions = 20
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
   kms_key_arn                    = aws_kms_key.main.arn
 
   tracing_config {
