@@ -24,3 +24,8 @@ infra/terraform/.terraform/
 *.tfplan
 dist/
 .pytest_cache/
+
+# variáveis locais do Terraform (e-mail, contas) — só o .example é versionado
+*.tfvars
+!*.tfvars.example
+.terraform/

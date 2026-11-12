@@ -1,0 +1,11 @@
+# Laboratório na AWS real (ex.: conta Free Plan). Copie para lab.tfvars (gitignored) e preencha o e-mail.
+# Valores usados na execução de 2026-11-11 (v3.3.0).
+region                        = "us-east-1"
+environment                   = "lab"
+lambda_zip_path               = "../../dist/lambda_v3.zip" # pacote <= 50 MB (upload direto)
+create_endpoint               = false                      # endpoint SageMaker cobra por hora
+enable_pipeline_orchestration = false                      # Step Functions + 5 Lambdas: desligado no lab
+lambda_reserved_concurrency   = -1                         # conta nova: limite 10, AWS exige 10 não reservadas
+kms_deletion_window_days      = 7                          # desmonte rápido; chave pendente não é cobrada
+log_retention_days            = 1
+budget_alert_email            = "seu-email@exemplo.com"

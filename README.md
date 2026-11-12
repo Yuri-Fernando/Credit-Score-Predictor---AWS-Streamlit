@@ -230,6 +230,44 @@ As linhas de testes, drift e shadow vêm de execuções locais (`pytest`, `scrip
 
 ---
 
+## ☁️ Execução na AWS real (v3.3.0 — 11/11/2026)
+
+O `infra/terraform` foi aplicado numa conta AWS **Free Plan** (us-east-1) como parte da plataforma
+[AWS-Project](https://github.com/Yuri-Fernando/AWS-Project) (sessão R4), testado e destruído no mesmo dia.
+
+**O que subiu (30 recursos):** API Gateway HTTP com autorizador JWT (Cognito User Pool + client), Lambda
+`credit-score-lab-predict` (Python 3.11, 1024 MB, X-Ray, handler v3), DynamoDB `credit-score-lab-inference-log`
+(PITR, KMS), bucket S3 de artefatos (versionado, KMS, acesso público bloqueado), chave KMS com rotação, log groups
+criptografados, 4 alarmes CloudWatch + dashboard, tópico SNS, role/policies de IAM e SageMaker Model Package Group.
+**Desligados de propósito (custo por hora):** endpoint SageMaker (`create_endpoint = false`) e Step Functions
+(`enable_pipeline_orchestration = false`).
+
+| Etapa | Comando | Resultado |
+|---|---|---|
+| Plano | `terraform plan -var-file=lab.tfvars` | 30 a criar |
+| Apply | `terraform apply` | falhou no 1º apply (KMS × CloudWatch Logs) → corrigido → 12 criados + 1 alterado |
+| Inferência | `aws lambda invoke` com payload de 23 features | HTTP 200, modelo `v3-20260929`, PD **0,235**, faixa **D** |
+| Persistência | `dynamodb scan --select COUNT` antes/depois | 1 → 2 registros |
+| Contrato | `contracts/scoring_result.v1` (validado pelo e2e do AWS-Project) | válido |
+| Destroy | `terraform destroy` | **30 destruídos**; chave KMS em exclusão agendada (7 dias, sem cobrança) |
+
+**Custo:** Lambda, API Gateway, DynamoDB e Cognito ficaram no free tier; KMS US$ 0,001. Nenhum valor faturado
+(créditos do Free Plan). State do Terraform **local** — nada persistido na conta.
+
+<p align="center">
+  <a href="https://github.com/Yuri-Fernando/AWS-Project/blob/main/docs/evidence/aws/aws-inventory.png"><img src="https://raw.githubusercontent.com/Yuri-Fernando/AWS-Project/main/docs/evidence/aws/aws-inventory.png" width="560"></a><br>
+  <sub>Inventário lido da conta real durante a sessão: Lambda <code>credit-score-lab-predict</code> ativa, tabela DynamoDB, budgets e o e2e 13/13 (inclui a Lambda e o DynamoDB)</sub>
+</p>
+
+Relato completo da sessão (linha do tempo, custo por serviço, desmonte verificado nas 17 regiões):
+[AWS-Project/docs/AWS_REAL_SESSION.md](https://github.com/Yuri-Fernando/AWS-Project/blob/main/docs/AWS_REAL_SESSION.md).
+
+Reproduzir: copiar `infra/terraform/lab.tfvars.example` para `lab.tfvars` (gitignored), preencher o e-mail do budget e
+rodar `terraform -chdir=infra/terraform apply -var-file=lab.tfvars`; ao terminar, esvaziar o bucket de artefatos e
+`terraform destroy -var-file=lab.tfvars`.
+
+---
+
 ## 🚀 Aplicações
 
 - Portfólio de ML aplicado a risco de crédito com arquitetura serverless real;
