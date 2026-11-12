@@ -2,6 +2,20 @@
 
 Documento mestre de histórico. Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/) + SemVer.
 
+## [3.3.0] — 2026-11-11 — Primeiro apply real do IaC v3 (lab AWS Free Plan)
+
+### Corrigido
+- Key policy da chave KMS liberando o CloudWatch Logs (`CreateLogGroup` falhava com `AccessDeniedException` na conta real).
+
+### Adicionado
+- Variável `lambda_reserved_concurrency` (padrão 20; `-1` para contas novas com limite de 10 execuções).
+- Variável `kms_deletion_window_days` (padrão 30).
+
+### Validado
+- `terraform apply` na AWS real (us-east-1): 30 recursos; `aws lambda invoke` → HTTP 200, modelo `v3-20260929`,
+  PD 0,235, faixa D; DynamoDB 1 → 2 registros; `terraform destroy` → 30 destruídos. Executado pela plataforma
+  [AWS-Project](https://github.com/Yuri-Fernando/AWS-Project) (state local, nada persistido na conta).
+
 ## [3.2.0] — 2026-10-21 — Governança de ciclo de vida no registry local
 
 Origem: auditoria de portfólio (governança de modelos: dono, tier de risco, revisão periódica, retirada).

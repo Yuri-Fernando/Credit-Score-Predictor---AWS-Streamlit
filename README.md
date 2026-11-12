@@ -4,14 +4,14 @@
 
 [![ci](https://github.com/Yuri-Fernando/Credit-Score-Predictor---AWS-Streamlit/actions/workflows/ci.yml/badge.svg)](https://github.com/Yuri-Fernando/Credit-Score-Predictor---AWS-Streamlit/actions/workflows/ci.yml)
 ![testes](https://img.shields.io/badge/testes-73%20passed-0a8a0a)
-![IaC](https://img.shields.io/badge/IaC-validate%2Fplan%20only-2a78d6)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v3.2.0-4a5563) ![license](https://img.shields.io/badge/license-sem%20arquivo-4a5563)
+![IaC](https://img.shields.io/badge/IaC-aplicado%20na%20AWS%20real%20(lab)-ff9900)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v3.3.0-4a5563) ![license](https://img.shields.io/badge/license-sem%20arquivo-4a5563)
 
 ## Status
 
-🟢 **Concluído no escopo v1 (fluxo serverless real) — v3.2.0 adiciona MLOps, orquestração, guard-rails de custo e governança de ciclo de vida do modelo, tudo validado localmente e nada aplicado na AWS.**
+🟢 **Concluído no escopo v1 (fluxo serverless real) — v3.3.0: o Terraform da v3 foi aplicado numa conta AWS real (Free Plan, us-east-1) em 11/11/2026, validado de ponta a ponta e destruído no mesmo dia.**
 
-A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) é o fluxo real em produção na conta AWS do autor, implantado em 2025. As v2/v3/v3.1/v3.2 (robustez adversarial, MLOps financeiro, orquestração via Step Functions, CloudWatch, guard-rails de custo e governança de ciclo de vida) são **inteiramente locais**: 73 testes passaram nesta revisão, mas **nenhum `terraform apply`/`destroy` foi executado** — toda a infraestrutura nova existe apenas como `terraform validate`/`plan`, nunca aplicada na conta.
+A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) foi o fluxo real implantado em 2025. As v2/v3/v3.1/v3.2 (robustez adversarial, MLOps financeiro, orquestração via Step Functions, CloudWatch, guard-rails de custo e governança de ciclo de vida) foram desenvolvidas e testadas localmente (73 testes). Na v3.3.0 o `infra/terraform` saiu do `validate` para um **`apply` real** (30 recursos: API Gateway com JWT/Cognito, Lambda v3, DynamoDB, KMS, S3, alarmes) dentro da plataforma [AWS-Project](https://github.com/Yuri-Fernando/AWS-Project): a Lambda respondeu HTTP 200 com o modelo v3 e gravou a inferência no DynamoDB; em seguida, `terraform destroy` (30 destruídos). O endpoint SageMaker e o Step Functions ficaram desligados (custo por hora).
 
 | Camada | Estado | Evidência |
 |---|---|---|
@@ -19,7 +19,8 @@ A v1 (Lambda + API Gateway + SageMaker + DynamoDB + S3 + Streamlit) é o fluxo r
 | v2 — Robustez adversarial (proxy local) | 🟢 Local, testado | 6 testes (`tests/test_adversarial.py`) |
 | v3 — MLOps financeiro (registry, contrato, drift, shadow/canary) | 🟢 Local, testado · IaC validado | 14 testes (`tests/test_mlops.py`) |
 | v3.1 — Orquestração (Step Functions), CloudWatch, guard-rails de custo | 🟢 Local, testado · IaC validado | 13 testes (`tests/test_stepfunctions.py`) |
-| v3.2 — Governança de ciclo de vida no registry (responsáveis, `risk_tier`, revisão com vencimento, Retirement) | 🟢 Local, testado · nada aplicado na AWS | 40 testes (`tests/test_lifecycle.py`) |
+| v3.2 — Governança de ciclo de vida no registry (responsáveis, `risk_tier`, revisão com vencimento, Retirement) | 🟢 Local, testado | 40 testes (`tests/test_lifecycle.py`) |
+| v3.3 — `infra/terraform` aplicado na AWS real (lab, Free Plan) | 🟢 Apply → teste → destroy em 11/11/2026 | Lambda HTTP 200 (modelo `v3-20260929`), registro no DynamoDB; [evidência](https://github.com/Yuri-Fernando/AWS-Project/blob/main/docs/evidence/aws/aws-inventory.png) |
 
 ---
 
@@ -172,7 +173,8 @@ reg.advance("riskcredit-pd", 1, "Shadow", "ana", "iniciar comparação champion 
 | `tests/test_mlops.py` (14) | Contrato rejeita dado inválido; registry aplica gates; handler responde 400/413/422/500 corretamente | 14 passed |
 | `tests/test_stepfunctions.py` (13) | ASL real é estruturalmente válido; simulação local ponta-a-ponta reflete o resultado real de drift; os 4 ramos do `Choice` são testados isoladamente | 13 passed |
 | Paridade RiskCredit ↔ handler v3 | Mesma engenharia de features que o modelo de origem | máx \|Δ PD\| = 5e-7 nas 25 golden samples |
-| `terraform validate` (com e sem `enable_pipeline_orchestration`) | IaC é sintaticamente e estruturalmente válido | Validado nesta revisão, **sem apply/plan contra a conta** |
+| `terraform validate` (com e sem `enable_pipeline_orchestration`) | IaC é sintaticamente e estruturalmente válido | Validado (v3.1) |
+| `terraform plan`/`apply`/`destroy` na AWS real (11/11/2026) | O IaC cria a stack de verdade e a Lambda serve o modelo v3 atrás do API Gateway | 30 recursos criados; `lambda invoke` HTTP 200, PD 0,235, faixa D; DynamoDB 1 → 2 registros; 30 destruídos |
 
 Execução nesta revisão: `python -m pytest -q tests` → **72 passed, 1 skipped** em 524 s (cópia local fora do Drive); o teste pulado (`test_real_riskcredit_assessment_if_present`) lê o `risk_assessment.json` real do RiskCredit v3.1 e só roda com a pasta do RiskCredit ao lado deste repo — rodado à parte no local original: **1 passed**. Total **73** (6 + 14 + 13 + 40).
 
@@ -185,7 +187,15 @@ Execução nesta revisão: `python -m pytest -q tests` → **72 passed, 1 skippe
 - **Hipótese inicial:** um lote amostrado do próprio perfil de treino deveria aparecer como "sem drift" (PSI baixo) no monitoramento.
 - **O que se testou:** `src/mlops/monitoring.py` mede PSI por feature e do score; o teste ponta-a-ponta (`tests/test_stepfunctions.py`) roda esse cálculo sobre lotes sintéticos reais do repositório, sem mockar o resultado.
 - **Causa real:** a amostragem independente por feature preserva as marginais de cada variável, mas destrói a estrutura conjunta (correlação entre features) que existia no treino real — é exatamente esse tipo de drift estrutural que o PSI por feature não detecta, mas o PSI do score detecta.
-- **Decisão de design:** em vez de forçar um "caminho feliz" artificial, o teste ponta-a-ponta reflete esse resultado real — o pipeline suspende a publicação em `HoldForDriftReview`. Os 4 ramos de decisão (rollback / hold-drift / hold-canary / promote) são testados isoladamente a partir do estado `CheckCanaryAndDrift`, para não depender só do caminho que o lote sintético disponível força. A mitigação real (tráfego de produção de verdade em vez de dados sintéticos) fica documentada no ROADMAP.
+- **Decisão de design (drift):** em vez de forçar um "caminho feliz" artificial, o teste ponta-a-ponta reflete esse resultado real — o pipeline suspende a publicação em `HoldForDriftReview`. Os 4 ramos de decisão (rollback / hold-drift / hold-canary / promote) são testados isoladamente a partir do estado `CheckCanaryAndDrift`, para não depender só do caminho que o lote sintético disponível força. A mitigação real (tráfego de produção de verdade em vez de dados sintéticos) fica documentada no ROADMAP.
+
+**Achados do primeiro `apply` real (v3.3.0)** — nenhum aparecia em `validate` nem no emulador:
+
+| Sintoma | Causa real | Correção |
+|---|---|---|
+| `CreateLogGroup` → `AccessDeniedException` ("The specified KMS key does not exist or is not allowed") | a chave KMS não tinha key policy liberando o serviço CloudWatch Logs | `data.aws_iam_policy_document.kms` com `logs.<região>.amazonaws.com` e condição no ARN do log group |
+| Lambda com `reserved_concurrent_executions = 20` | contas novas têm limite de 10 execuções e a AWS exige 10 não reservadas | variável `lambda_reserved_concurrency` (padrão 20; `-1` = sem reserva) |
+| Chave KMS com 30 dias de janela de exclusão | laboratório precisa desmontar rápido | variável `kms_deletion_window_days` (padrão 30; 7 no lab) — chave pendente de exclusão não é cobrada |
 
 ---
 
@@ -194,8 +204,9 @@ Execução nesta revisão: `python -m pytest -q tests` → **72 passed, 1 skippe
 - **Linguagem:** Python
 - **Machine Learning:** XGBoost, scikit-learn (`HistGradientBoostingClassifier` como proxy local)
 - **AWS (v1, real):** Lambda, API Gateway, SageMaker, DynamoDB, S3
-- **AWS (v3/v3.1, IaC validado, não aplicado):** Step Functions, CloudWatch, AWS Budgets, KMS, IAM, Cognito/JWT
-- **IaC:** Terraform (`terraform fmt/validate/plan` apenas)
+- **AWS (v3, aplicado em lab real em 11/11/2026):** API Gateway HTTP + JWT/Cognito, Lambda, DynamoDB, KMS, S3, CloudWatch, AWS Budgets, IAM
+- **AWS (v3.1, IaC validado, não aplicado — custo por hora):** Step Functions, endpoint SageMaker
+- **IaC:** Terraform (`validate`/`plan`; `apply`/`destroy` em lab controlado)
 - **Front-end:** Streamlit
 - **Qualidade:** pytest, CI (GitHub Actions)
 
@@ -213,7 +224,9 @@ Execução nesta revisão: `python -m pytest -q tests` → **72 passed, 1 skippe
 | Shadow — challenger V2 | Concordância 86%, PSI de score 0,85, Spearman 0,43 → canary **hold** | `scripts/mlops_demo.py` |
 | IaC | `terraform validate` ok nos dois valores de `enable_pipeline_orchestration` | `scripts/terraform_guard.sh validate` |
 
-Nenhum número acima vem de execução real contra a conta AWS para as camadas v2/v3/v3.1 — todos são execuções locais (`pytest`, `scripts/mlops_demo.py`, `terraform validate`).
+| Apply real (v3.3.0) | 30 recursos criados e destruídos; Lambda HTTP 200, modelo `v3-20260929`, PD 0,235 (faixa D); DynamoDB 1 → 2 | `terraform apply`/`destroy` + `aws lambda invoke` em 11/11/2026 |
+
+As linhas de testes, drift e shadow vêm de execuções locais (`pytest`, `scripts/mlops_demo.py`); só a linha "Apply real" vem da conta AWS (laboratório Free Plan, desmontado no mesmo dia).
 
 ---
 
@@ -249,7 +262,7 @@ CloudWatch/X-Ray em produção, WAF, Secrets Manager
 - **F1 — Robustez adversarial (v2)** ✅ Concluída — evasão, curvas de robustez, adversarial training, model extraction, 6 testes.
 - **F2 — MLOps financeiro local-first (v3)** ✅ Concluída — contrato, registry, handler, monitoring, shadow/canary, IaC validado (não aplicado), 14 testes.
 - **F3 — Orquestração e guard-rails de custo (v3.1)** ✅ Concluída — Step Functions (ASL real), CloudWatch, `aws_budgets_budget`, `terraform_guard.sh`, 13 testes.
-- **F4 — Apply real condicionado a orçamento** ⏸️ Pendente por custo — `terraform plan`/`apply` em conta de staging, SageMaker Model Registry real, canary com tráfego real.
+- **F4 — Apply real** 🟡 Parcial — stack serverless v3 aplicada, testada e destruída na AWS real (v3.3.0); SageMaker Model Registry real e canary com tráfego real seguem pendentes por custo.
 
 Detalhes completos: [ROADMAP.md](ROADMAP.md).
 
@@ -259,6 +272,7 @@ Detalhes completos: [ROADMAP.md](ROADMAP.md).
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| 3.3.0 | 2026-11-11 | `infra/terraform` aplicado na AWS real (Free Plan): key policy do KMS para o CloudWatch Logs, `lambda_reserved_concurrency` e `kms_deletion_window_days` variáveis; Lambda v3 HTTP 200 + DynamoDB; destroy completo |
 | 3.2.0 | 2026-10-21 | Governança de ciclo de vida no registry local: `model_owner`/`business_owner`/`risk_tier`/`approval_date`/`review_due_date`, estágios Validation→…→Retirement com transições validadas, revisão vencida bloqueia promoção/deploy, Retirement preserva histórico, `risk_tier` lido do RiskCredit v3.1; 40 testes novos |
 | 3.1.0 | 2026-10-07 | Orquestração via Step Functions (ASL real + interpretador local), CloudWatch dashboard/alarmes, guard-rails de custo (AWS Budgets, tags obrigatórias, `terraform_guard.sh`), 13 testes novos |
 | 3.0.0 | 2026-09-28 | MLOps financeiro local-first: contrato de dados, registry com aprovação manual, handler endurecido, monitoramento de drift, shadow/canary, IaC validado, 14 testes |
@@ -271,7 +285,10 @@ Changelog completo: [CHANGELOG.md](CHANGELOG.md).
 
 ## 🔮 Próximos Passos
 
-**Concluído nesta versão (3.2.0):**
+**Concluído nesta versão (3.3.0):**
+- ✅ Primeiro `apply` real do IaC v3 (lab Free Plan), com os 3 achados corrigidos e `destroy` completo.
+
+**Concluído na versão 3.2.0:**
 - ✅ Governança de ciclo de vida no registry local (responsáveis, `risk_tier`, revisão com vencimento, Retirement com histórico preservado);
 - ✅ `risk_tier` lido do `risk_assessment.json` do RiskCredit v3.1, com conferência da versão do modelo e SHA-256 da origem.
 
@@ -281,7 +298,6 @@ Changelog completo: [CHANGELOG.md](CHANGELOG.md).
 - ✅ Guard-rails de custo (budget, tags obrigatórias, bloqueio de apply/destroy).
 
 **Dependem de terceiros/orçamento:**
-- `terraform plan`/`apply` real em conta de staging com orçamento aprovado;
 - SageMaker Model Registry real (hoje só a semântica é replicada localmente);
 - Canary com tráfego real nas variantes champion/challenger do endpoint;
 - WAF (exige REST API ou CloudFront na frente do HTTP API) e Secrets Manager.
@@ -388,7 +404,7 @@ Não versionado (e por quê): `credenciais aws cli.txt` (segredo local, ignorado
 
 ## Status
 
-🟢 **v1 concluída e real em produção na AWS.** 🟢 **v2/v3/v3.1/v3.2 concluídas localmente** — 73 testes passando (confirmado nesta revisão), IaC validado para orquestração via Step Functions, CloudWatch e guard-rails de custo. Nenhum `apply`/`destroy` foi executado contra a conta; o que depende de orçamento está documentado no ROADMAP.
+🟢 **v1 concluída (real na AWS, 2025).** 🟢 **v2/v3/v3.1/v3.2 concluídas localmente** — 73 testes. 🟢 **v3.3.0: IaC serverless v3 aplicado, testado e destruído numa conta AWS real (Free Plan) em 11/11/2026.** Endpoint SageMaker, Step Functions e canary com tráfego real seguem pendentes por custo (ROADMAP).
 
 ---
 

@@ -1,5 +1,5 @@
-# IaC do Credit Score Predictor — NÃO APLICADO (deploy pausado por custo).
-# Validado com `terraform validate`; nenhum `plan`/`apply` foi executado contra uma conta AWS.
+# IaC do Credit Score Predictor. Aplicado, testado e destruído numa conta AWS real (lab Free Plan) em 2026-11-11.
+# Sem backend remoto de propósito: o state fica local (nenhum dado persistido na conta de laboratório).
 terraform {
   required_version = ">= 1.5"
   required_providers {
